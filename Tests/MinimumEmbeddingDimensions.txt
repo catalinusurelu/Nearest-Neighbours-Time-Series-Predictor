@@ -1,0 +1,9 @@
+Minimum Embedding dimension pentru seriile de timp din aceasta arhiva
+
+VIX - 5
+Put-to-call ratio - 6
+GBPUSD1440 - 6
+GBPUSD240 - 7
+EURUSD240 - 6
+
+S-a determinat setand f_min=0 si considerand cel mai mare embedding dimension pentru care fractia de false nearest neighbours este strict mai mare decat 0. Pentru f_min=0.1% se obtin rezultate mai mici.

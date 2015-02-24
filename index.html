@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+	<!-- Load c3.css -->
+	<link href="css/c3.min.css" rel="stylesheet" type="text/css" />
+
+	<style>
+		.regionX {
+		  fill: green;
+		}
+
+		span:not(#mean_squared_error):not(#filename) {
+		  display: inline-block;
+		  width  : 80px;
+		  text-align: left;
+		}
+
+		input:not(#file) {
+		  font: 1em sans-serif;
+
+		  width: 250;
+
+		  border: 1px solid #999;
+		}
+
+	</style>
+
+	<!-- Load d3.js and c3.js -->
+	<script src="js/d3.min-3bff8220.js"></script>
+	<script src="js/c3.min.js" charset="utf-8"></script>
+	<script src="js/jquery-1.11.0.min-910066fb.js" type="text/javascript"></script>
+	<script src="js/Nearest Neighbour Predictor.js"></script>
+
+	<script>
+		var chart;
+		var chartData = {	
+							data: {
+						        xs: {
+						            'Original': 'x1',
+						            'Prediction': 'x2'
+						    	},
+						        columns: [
+						            ['x1', 1, 2, 3, 4, 5, 6],
+						            ['x2', 4, 5, 6],
+						            ['Original', 30, 200, 100, 400, 150, 250],
+						            ['Prediction', 240, 100, 190],
+						        ]
+						    },
+						    zoom: {
+						        enabled: true
+						    },
+						    color: {
+						        pattern: ['#ff0000', '#00ff00']
+						    },
+						    regions: [
+						        {axis: 'x', start: 4, end: 6, class: 'regionX'}
+						    ]
+						};
+
+		function range(start, end) {
+		    var rez = [];
+		    for (var i = start; i < end; i++) {
+		        rez.push(i);
+		    }
+		    return rez;
+		}
+
+		$(function() {
+		    chart = c3.generate(chartData);
+
+
+
+			function handleFileSelect(evt) {
+				// Check for the various File API support.
+				if (window.File && window.FileReader && window.FileList && window.Blob) {
+				  // Great success! All the File APIs are supported.
+				} else {
+				  alert('The File APIs are not fully supported in this browser. Please use the newest version of Chrom or Firefox for best results.');
+				}
+
+			    var files = evt.target.files; // FileList object
+
+			    var lastFilename;
+
+			    // files is a FileList of File objects. List some properties.
+    				
+				    for (var i = 0, f; f = files[i]; i++) {
+				    	var reader = new FileReader();
+				    	
+						reader.onload = function(e) {
+							var contents = reader.result;
+
+							lastFilename = $("#file").val().split("\\").pop();;
+
+							// Replace file name so when selecting same file it's name will be different and the event will be triggered again.
+							$("#file").val("");
+
+							// Split by multiple spaces (regex literal /pattern/flags) and convert elements to int. map(Number) would have also worked :).
+							var samples = contents.trim().split(/\s+/).map(function(item) {
+																    return parseFloat(item, 10);
+																});
+
+							//samples = [];
+							var veloc = 46; //horizontal velocity (pixels per second)
+							var amp =12; //sine wave amplitude (pixels)
+							var freq = 0.004; //oscillations per second
+
+							//for(var i = 0 ; i < 1000; i++)
+							//samples[i] = amp*i*Math.sin(freq*i*2*Math.PI);
+
+							var k = $("#k").val() == "" ? undefined : Number($("#k").val());
+							var phi = $("#phi").val() == "" ? undefined : Number($("#phi").val());
+							var rtol = $("#rtol").val() == "" ? undefined : Number($("#rtol").val());
+							var atol = $("#atol").val() == "" ? undefined : Number($("#atol").val());
+							var f_limit = $("#f_limit").val() == "" ? undefined : Number($("#f_limit").val());
+
+							var predictions = nearestNeighboursPredictor(samples.slice(0, samples.length / 2), samples.slice(samples.length / 2).length, k, phi, rtol, atol, f_limit);
+
+
+							var mean_squared_error = meanSquaredError(samples.slice(samples.length / 2), predictions);
+							$("#mean_squared_error").html("<b>" + mean_squared_error + "</b>");
+							$("#filename").html("<b> for file " + lastFilename + "</b>");
+
+							var predictionsX = range(samples.length / 2, samples.length);
+
+							// Mai sarim peste puncte de afisat ca sa mearga mai repede.
+							var filteredPredictionX = range(samples.length / 2, samples.length).filter(function (elem, index) {
+								return index % 3 == 0;
+							});
+
+							var filteredPredicitons = predictions.filter(function (elem, index) {
+								return index % 3 == 0;
+							});
+
+							var filteredSamplexX = range(0, samples.length).filter(function (elem, index) {
+								return index % 3 == 0;
+							});
+
+							var filteredSamples = samples.filter(function (elem, index) {
+								return index % 3 == 0;
+							});
+
+							chartData.data.columns[0] = ['x1'].concat(filteredSamplexX);
+							chartData.data.columns[1] = ['x2'].concat(filteredPredictionX);
+							chartData.data.columns[2] = ['Original'].concat(filteredSamples);
+							chartData.data.columns[3] = ['Prediction'].concat(filteredPredicitons);
+							chartData.regions =  [ {axis: 'x', start: samples.length / 2, end: samples.length - 1, class: 'regionX'} ];
+
+							// Unload data.
+							chart.unload();
+
+							// Remove regions.
+							chart.regions.remove();
+
+							// Had to re-generate the chart because loading new data and replacing the region did not work as expected.
+							chart = c3.generate(chartData);
+						}
+
+						reader.onerror = function(event) {
+						    console.error("File could not be read! Code " + event.target.error.code);
+						};
+
+						reader.readAsText(f, "ASCII");
+				    }
+				    
+				  }
+
+			  	document.getElementById('file').addEventListener('change', handleFileSelect, false);
+			});
+
+		window.onerror = function() {
+			alert("Something went wrong, please try different parameters (especially a higher angle because we probably don't have enough neighbours for this angle)!");
+		}
+		
+
+	</script>
+</head>
+
+
+<body>
+	<div id="chart"></div>
+
+	<input type="file" id="file" /> <br>
+
+
+	<label for="atol">
+		<span> Atol: </span>
+		<input type="text" id ="atol" name="atol" placeholder="Default(2)"> <br>
+	</label>
+
+	<label for="rtol">
+		<span> Rtol: </span>
+		<input type="text" id ="rtol" name="rtol" placeholder="Default(10)"> <br>
+	</label>
+
+	<label for="f_limit">
+		<span> f_limit: </span>
+		<input type="text" id ="f_limit" name="f_limit" placeholder="Default(0.1)"> <br>
+	</label>
+
+	<label for="phi">
+		<span> Angle: </span>
+		<input type="text" id ="phi" name="phi" placeholder="Default(30)"> <br>
+	</label>
+
+	<label for="k">
+		<span> Number of neighbours: </span>
+		<input type="text" id ="k" name="k" placeholder="Default(25)"> <br>
+	</label>
+
+	<div> Result - mean squared error: <span id = "mean_squared_error"> </span>  <span id="filename"> </span> <br> </div>
+	
+
+</body>
+
+</html>
